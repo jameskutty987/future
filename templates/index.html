@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spotify Automation</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        .container { margin-top: 20px; }
+        .btn { margin-right: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="my-4">Spotify Automation</h1>
+        <div class="mb-3">
+            <a href="/add_artist" class="btn btn-primary">Add Artist ID</a>
+            <a href="/add_genre" class="btn btn-secondary">Add Genre</a>
+            <a href="/add_unknown_playlist" class="btn btn-dark">Add Unknown Playlist</a>
+            <a href="/run_job" class="btn btn-success">Run Job</a>
+            
+        </div>
+        <h2>Artists</h2>
+        <table class="table table-striped">
+            <thead class="thead-dark">
+                <tr>
+                    <th>ID</th>
+                    <th>Artist ID</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for artist in artists %}
+                <tr>
+                    <td>{{ artist.id }}</td>
+                    <td>{{ artist.artist_id }}</td>
+                    <td>
+                        <a href="/delete_artist/{{ artist.id }}" class="btn btn-danger btn-sm">Delete</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        <h2>Unknown Playlists</h2>
+        <table class="table table-striped">
+            <thead class="thead-dark">
+                <tr>
+                    <th>ID</th>
+                    <th>Playlist ID</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for unknown_playlist in unknown_playlists %}
+                <tr>
+                    <td>{{ unknown_playlist.id }}</td>
+                    <td>{{ unknown_playlist.playlist_id }}</td>
+                    <td>
+                        <a href="/delete_unknown_playlist/{{ unknown_playlist.id }}" class="btn btn-danger btn-sm">Delete</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <h2>Genres</h2>
+        <table class="table table-striped">
+            <thead class="thead-dark">
+                <tr>
+                    <th>ID</th>
+                    <th>Genre</th>
+                    <th>Playlist ID</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for genre in genres %}
+                <tr>
+                    <td>{{ genre.id }}</td>
+                    <td>{{ genre.genre }}</td>
+                    <td>{{ genre.playlist_id }}</td>
+                    <td>
+                        <a href="/delete_genre/{{ genre.id }}" class="btn btn-danger btn-sm">Delete</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="mt-4">
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category }}">
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+    </div>
+</body>
+</html>
