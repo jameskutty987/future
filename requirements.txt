@@ -1,0 +1,12 @@
+Flask==3.0.3
+Flask-SQLAlchemy==3.1.1
+SQLAlchemy==2.0.31
+blinker==1.8.2
+greenlet==3.0.3
+Werkzeug==3.0.3
+itsdangerous==2.2.0
+Jinja2==3.1.4
+MarkupSafe==2.1.5
+redis==5.0.7
+spotipy==2.24.0
+requests==2.32.3
