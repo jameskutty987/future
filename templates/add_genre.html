@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Genre</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container">
+        <h1 class="my-4">Add Genre</h1>
+        <form action="/add_genre" method="POST">
+            <div class="form-group">
+                <label for="genre">Genre Name</label>
+                <input type="text" class="form-control" id="genre" name="genre" required>
+            </div>
+            <div class="form-group">
+                <label for="playlist_id">Playlist ID</label>
+                <input type="text" class="form-control" id="playlist_id" name="playlist_id" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Add Genre</button>
+        </form>
+        <a href="/" class="btn btn-secondary mt-3">Back to Home</a>
+    </div>
+</body>
+</html>
