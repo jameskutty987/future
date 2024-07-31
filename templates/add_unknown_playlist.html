@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Unknown Playlist</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container">
+        <h1 class="my-4">Add Unknown Playlist</h1>
+        <form method="POST" action="/add_unknown_playlist">
+            <div class="form-group">
+                <label for="playlist_id">Playlist ID:</label>
+                <input type="text" id="playlist_id" name="playlist_id" class="form-control" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Add Unknown Playlist</button>
+            <a href="/" class="btn btn-secondary">Back to Home</a>
+        </form>
+    </div>
+</body>
+</html>
