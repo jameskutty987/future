@@ -16,8 +16,8 @@ sp = spotipy.Spotify(auth_manager=SpotifyOAuth(
     scope='playlist-read-private playlist-modify-public playlist-modify-private playlist-read-collaborative'
 ))
 
-# Database path for PythonAnywhere
-DATABASE = '/home/Dropemusic/myproject/music_data.db'
+# Database setup
+DATABASE = 'C:/Users/AKHIL/Desktop/drope/music_data.db'
 
 def get_db_connection():
     """Establish a connection to the database."""
@@ -29,7 +29,7 @@ def fetch_tracks_from_artist_last_month(artist_id, limit=15):
     """Fetch tracks released by a given artist in the last month."""
     tracks = []
     one_month_ago = datetime.now() - timedelta(days=30)
-
+    
     try:
         print(f"Fetching albums for artist ID: {artist_id}")
         results = sp.artist_albums(artist_id, album_type='album,single', limit=50)
@@ -77,124 +77,121 @@ def fetch_tracks_from_artist_last_month(artist_id, limit=15):
 def get_track_details(track_item):
     """Extract and classify track details."""
     track = track_item
-    release_date = track.get('release_date', '')
-    track_name = track.get('name', '')
-    track_id = track.get('id', '')
-    track_uri = track.get('uri', '')
+    release_date = track.get('release_date')
+    if release_date:
+        try:
+            release_date = datetime.strptime(release_date, '%Y-%m-%d')
+        except ValueError:
+            release_date = None
 
-    artist_names = [artist['name'] for artist in track.get('artists', [])]
-    primary_artist_name = artist_names[0] if artist_names else ''
-    primary_artist_id = track['artists'][0]['id'] if track['artists'] else ''
+    one_month_ago = datetime.now() - timedelta(days=30)
+    if release_date and release_date >= one_month_ago:
+        artist_id = track.get('artists', [{}])[0].get('id')
+        genre = classify_track_by_artist(artist_id) if artist_id else 'Unknown'
+        return {
+            'id': track.get('id'),
+            'genre': genre,
+            'name': track.get('name'),
+            'artist': track.get('artists', [{}])[0].get('name'),
+            'release_date': release_date.strftime('%Y-%m-%d') if release_date else 'Unknown'
+        }
+    return None
 
-    # Fetch audio features (e.g., tempo, key, mode, etc.)
-    audio_features = sp.audio_features([track_id])
-    track_features = audio_features[0] if audio_features else {}
-
-    return {
-        'track_id': track_id,
-        'track_name': track_name,
-        'track_uri': track_uri,
-        'release_date': release_date,
-        'primary_artist_name': primary_artist_name,
-        'primary_artist_id': primary_artist_id,
-        'audio_features': track_features
-    }
-
-def classify_track_genre(track_details):
-    """Classify the genre of a track based on its primary artist's genres."""
-    artist_id = track_details.get('primary_artist_id', '')
+def classify_track_by_artist(artist_id):
+    """Classify track by artist's genre."""
+    if not artist_id:
+        return 'Unknown'
     try:
-        artist_info = sp.artist(artist_id)
-        genres = artist_info.get('genres', [])
-        if genres:
-            primary_genre = genres[0]  # Choose the first genre as the primary genre
-        else:
-            primary_genre = 'Unknown'
+        artist = sp.artist(artist_id)
+        genres = artist.get('genres', [])
+        return genres[0] if genres else 'Unknown'
     except Exception as e:
-        print(f"Error fetching genres for artist ID {artist_id}: {e}")
-        primary_genre = 'Unknown'
-    
-    return primary_genre
+        print(f"Error fetching artist information: {e}")
+        return 'Unknown'
 
-def add_tracks_to_playlist(playlist_id, track_uris):
-    """Add a list of track URIs to a playlist."""
-    try:
-        sp.playlist_add_items(playlist_id, track_uris)
-        print(f"Added {len(track_uris)} tracks to playlist {playlist_id}")
-    except Exception as e:
-        print(f"Error adding tracks to playlist {playlist_id}: {e}")
+def add_tracks_to_playlist(playlist_id, tracks):
+    """Add tracks to the specified playlist."""
+    if tracks:
+        track_ids = [track['id'] for track in tracks if track['id']]
+        if not track_ids:
+            return 0
+        try:
+            sp.playlist_add_items(playlist_id, track_ids)
+            return len(track_ids)
+        except Exception as e:
+            print(f"Error adding tracks to playlist ID {playlist_id}: {e}")
+            return 0
+    return 0
 
-def store_track_details_in_db(track_details, genre, playlist_id):
-    """Store track details in the database."""
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-
-        # Insert track details into the tracks table
-        cursor.execute('''
-            INSERT INTO tracks (track_id, track_name, artist_id, artist_name, release_date, genre, playlist_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (track_details['track_id'], track_details['track_name'], track_details['primary_artist_id'],
-              track_details['primary_artist_name'], track_details['release_date'], genre, playlist_id))
-
-        conn.commit()
-        cursor.close()
-        conn.close()
-        print(f"Stored track {track_details['track_id']} in the database.")
-    except Exception as e:
-        print(f"Error storing track details in the database: {e}")
-
-def main():
-    """Main script to fetch, classify, and add tracks to playlists."""
+def job():
     conn = get_db_connection()
     cursor = conn.cursor()
+    
+    print("Fetching genres from database")
+    cursor.execute("SELECT * FROM genre")
+    genres = cursor.fetchall()
+    print(f"Genres fetched: {genres}")
+    
+    print("Fetching unknown playlists from database")
+    cursor.execute("SELECT * FROM unknown_playlist")
+    unknown_playlists = cursor.fetchall()
+    print(f"Unknown playlists fetched: {unknown_playlists}")
+    
+    if not genres:
+        print("No genres found in database.")
+        return
 
-    try:
-        cursor.execute('SELECT * FROM artist')
-        artists = cursor.fetchall()
-        cursor.execute('SELECT * FROM genre')
-        genres = cursor.fetchall()
-        cursor.execute('SELECT * FROM unknown_playlist')
-        unknown_playlists = cursor.fetchall()
+    total_tracks_fetched = 0
+    total_tracks_processed = 0
+    total_tracks_added = 0
+    genre_add_count = {}
 
-        summary = []
+    genre_to_playlist = {row['genre'].strip().lower(): row['playlist_id'].strip() for row in genres if row['genre'] and row['playlist_id']}
+    print(f"Genre to Playlist Mapping: {genre_to_playlist}")
 
-        for artist in artists:
-            artist_id = artist['artist_id']
-            tracks = fetch_tracks_from_artist_last_month(artist_id)
+    unknown_playlist_id = [row['playlist_id'] for row in unknown_playlists if row['playlist_id']][0] if unknown_playlists else None
+    print(f"Unknown Playlist ID: {unknown_playlist_id}")
 
-            for track in tracks:
-                track_details = get_track_details(track)
-                genre = classify_track_genre(track_details)
+    print("Fetching artists from database")
+    cursor.execute("SELECT * FROM artist")
+    artists = cursor.fetchall()
+    print(f"Artists fetched: {artists}")
 
-                # Check if the genre exists in the genre table and get the associated playlist_id
-                genre_info = next((g for g in genres if g['genre'] == genre), None)
-                if genre_info:
-                    playlist_id = genre_info['playlist_id']
-                else:
-                    # If genre is unknown, add to the unknown playlist
-                    if unknown_playlists:
-                        playlist_id = unknown_playlists[0]['playlist_id']
-                    else:
-                        playlist_id = None
+    for artist in artists:
+        artist_id = artist['artist_id'].strip()
+        if not artist_id:
+            continue
 
+        print(f"\nProcessing artist ID: {artist_id}")
+
+        tracks = fetch_tracks_from_artist_last_month(artist_id)  # Updated function call
+        total_tracks_fetched += len(tracks)
+        processed_tracks = []
+
+        for track in tracks:
+            track_details = get_track_details(track)
+            if track_details:
+                processed_tracks.append(track_details)
+                total_tracks_processed += 1
+
+        if processed_tracks:
+            for track in processed_tracks:
+                genre = track['genre'].lower()
+                playlist_id = genre_to_playlist.get(genre, unknown_playlist_id)
                 if playlist_id:
-                    add_tracks_to_playlist(playlist_id, [track_details['track_uri']])
-                    store_track_details_in_db(track_details, genre, playlist_id)
+                    count_added = add_tracks_to_playlist(playlist_id, [track])
+                    total_tracks_added += count_added
+                    if genre not in genre_add_count:
+                        genre_add_count[genre] = 0
+                    genre_add_count[genre] += count_added
 
-                # Summarize results
-                summary.append(f"Added {track_details['track_name']} by {track_details['primary_artist_name']} to {genre} playlist")
+    # Simplified results summary
+    print("\nSummary:")
+    print(f"Total tracks fetched: {total_tracks_fetched}")
+    print(f"Total tracks processed: {total_tracks_processed}")
+    print(f"Total tracks added to playlist: {total_tracks_added}")
 
-        # Print the summary
-        print("Summary:")
-        for item in summary:
-            print(item)
-
-    except Exception as e:
-        print(f"Error during the main script execution: {e}")
-
-    cursor.close()
     conn.close()
 
 if __name__ == "__main__":
-    main()
+    job()
